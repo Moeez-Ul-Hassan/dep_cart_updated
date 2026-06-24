@@ -1,13 +1,22 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True, 
-    pool_size=10,       
-    max_overflow=20     
-)
+# --- The Smart Engine ---
+# Check if the environment is forcing SQLite (like in our GitHub Actions pipeline)
+if settings.DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        settings.DATABASE_URL, 
+        connect_args={"check_same_thread": False} 
+    )
+else:
+    # Standard Enterprise MySQL configuration
+    engine = create_engine(
+        settings.DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
