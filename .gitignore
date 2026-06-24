@@ -16,3 +16,9 @@ logs/
 
 # Docker
 .docker/
+
+# Terraform Secrets & State
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
