@@ -1,8 +1,5 @@
 name: Enterprise Cart CI Pipeline
 
-# THE ENTERPRISE RULE:
-# Run tests when a Pull Request is opened against dev or main, 
-# or when code is merged (pushed) into dev or main.
 on:
   push:
     branches: [ "dev", "main" ]
@@ -12,13 +9,13 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        # We match this to your local Python 3.12 environment
+        python-version: ["3.12"]
 
     steps:
-    - name: Check out repository code
+    - name: Check out repository
       uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
@@ -33,5 +30,10 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run Pytest Suite
+      # PYTHONPATH ensures Pytest can find your 'app' folder in the cloud
+      env:
+        PYTHONPATH: . 
+        # THE FIX: Tell the GitHub server to use SQLite instead of looking for MySQL
+        DATABASE_URL: "sqlite:///:memory:"
       run: |
         pytest -v
