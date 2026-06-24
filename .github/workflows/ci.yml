@@ -33,5 +33,7 @@ jobs:
       # PYTHONPATH ensures Pytest can find your 'app' folder in the cloud
       env:
         PYTHONPATH: . 
+        # THE FIX: Tell the GitHub server to use SQLite instead of looking for MySQL
+        DATABASE_URL: "sqlite:///:memory:"
       run: |
         pytest -v
