@@ -35,7 +35,23 @@ jobs:
       run: |
         pytest -v
 
-  # 2. DOCKER BUILD (Only runs if 'test' passes AND on main branch)
+  # 1.5 DOCKER DRY-RUN (Runs only on Pull Requests to ensure it builds!)
+  verify-build:
+    needs: test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      
+      - name: Test Docker Build (No Push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false 
+          tags: test-build:latest
+
+  # 2. DOCKER BUILD (Only runs on push/merge to main branch)
   build-and-push:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -57,7 +73,7 @@ jobs:
           push: true
           tags: moeezul/dep_cart_api:latest
 
-  # 3. AWS DEPLOYMENT (Only runs if 'build-and-push' passes)
+  # 3. AWS DEPLOYMENT (Only runs on push/merge to main branch)
   deploy-to-ec2:
     needs: build-and-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -72,5 +88,5 @@ jobs:
           script: |
             cd ~/dep_cart_updated
             git pull origin main
-            sudo docker compose -f docker-compose.prod.yml pull
-            sudo docker compose -f docker-compose.prod.yml up -d
+            sudo docker-compose -f docker-compose.prod.yml pull
+            sudo docker-compose -f docker-compose.prod.yml up -d 
