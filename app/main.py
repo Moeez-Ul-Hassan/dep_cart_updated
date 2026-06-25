@@ -18,7 +18,7 @@ setup_logging()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Enterprise Cart Platform",
+    title="Enterprise Cart Platform v2",
     version="1.0.0"
 )
 
