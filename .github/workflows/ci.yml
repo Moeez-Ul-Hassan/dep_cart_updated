@@ -88,5 +88,5 @@ jobs:
           script: |
             cd ~/dep_cart_updated
             git pull origin main
-            sudo docker-compose -f docker-compose.prod.yml pull
-            sudo docker-compose -f docker-compose.prod.yml up -d 
+            sudo docker compose -f docker-compose.prod.yml pull
+            sudo docker compose -f docker-compose.prod.yml up -d
