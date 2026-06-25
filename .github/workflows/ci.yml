@@ -1,4 +1,4 @@
-name: Enterprise Cart CI Pipeline
+name: Enterprise Cart CI/CD Pipeline
 
 on:
   push:
@@ -7,13 +7,12 @@ on:
     branches: [ "dev", "main" ]
 
 jobs:
+  # 1. CONTINUOUS INTEGRATION (TESTING)
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # We match this to your local Python 3.12 environment
         python-version: ["3.12"]
-
     steps:
     - name: Check out repository
       uses: actions/checkout@v4
@@ -30,10 +29,48 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run Pytest Suite
-      # PYTHONPATH ensures Pytest can find your 'app' folder in the cloud
       env:
         PYTHONPATH: . 
-        # THE FIX: Tell the GitHub server to use SQLite instead of looking for MySQL
         DATABASE_URL: "sqlite:///:memory:"
       run: |
         pytest -v
+
+  # 2. DOCKER BUILD (Only runs if 'test' passes AND on main branch)
+  build-and-push:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: moeezul/dep_cart_api:latest
+
+  # 3. AWS DEPLOYMENT (Only runs if 'build-and-push' passes)
+  deploy-to-ec2:
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Deployment Commands on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/dep_cart_updated
+            git pull origin main
+            sudo docker compose -f docker-compose.prod.yml pull
+            sudo docker compose -f docker-compose.prod.yml up -d
