@@ -87,6 +87,13 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/dep_cart_updated
+            git checkout main
+            git restore nginx/nginx.conf
+            
             git pull origin main
-            sudo docker compose -f docker-compose.prod.yml pull
-            sudo docker compose -f docker-compose.prod.yml up -d
+            
+            # Make the script executable
+            chmod +x deploy.sh
+            
+            # Run the Blue-Green Deployment!
+            ./deploy.sh
