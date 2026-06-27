@@ -13,7 +13,8 @@ services:
       - ./certbot/conf:/etc/letsencrypt # NEW: Where Nginx reads the certs
       - ./certbot/www:/var/www/certbot  # NEW: Where Certbot proves you own the domain
     depends_on:
-      - web
+      - web_blue
+      - web_green
     restart: always
 
   # --- THE CERTIFICATE MANAGER ---
@@ -24,15 +25,18 @@ services:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
 
-  # --- THE APPLICATION (FASTAPI) ---
-  web:
+  web_blue:
     image: moeezul/dep_cart_api:latest
-    container_name: cart_fastapi_web
+    container_name: cart_fastapi_blue
     env_file:
       - .env
-    depends_on:
-      - redis
-    restart: always
+
+  # --- THE GREEN ENGINE (Standby) ---
+  web_green:
+    image: moeezul/dep_cart_api:latest
+    container_name: cart_fastapi_green
+    env_file:
+      - .env
 
   # --- THE CACHE (REDIS) ---
   redis:
