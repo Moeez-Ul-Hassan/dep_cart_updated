@@ -21,7 +21,7 @@ echo "Current active container is $OLD_CONTAINER. Deploying update to $NEW_CONTA
 # 2. Pull the latest image from Docker Hub
 docker compose -f docker-compose.prod.yml pull
 
-# 3. Start the target service (Using the SERVICE name)
+# 3. Start the target service
 docker compose -f docker-compose.prod.yml up -d --no-deps $NEW_SERVICE
 
 # 4. THE ENTERPRISE HEALTH CHECK
@@ -30,8 +30,8 @@ sleep 5
 
 HEALTH_CHECK_PASSED=false
 for i in {1..5}; do
-    # Execute curl INSIDE the new container (Using the CONTAINER name)
-    if docker exec $NEW_CONTAINER curl -sSf http://localhost:8000/docs > /dev/null; then
+    # FIX: Use Python's built-in urllib instead of curl!
+    if docker exec $NEW_CONTAINER python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')" 2>/dev/null; then
         echo "✅ Health check passed! $NEW_CONTAINER is alive."
         HEALTH_CHECK_PASSED=true
         break
@@ -40,21 +40,24 @@ for i in {1..5}; do
     sleep 3
 done
 
-# If it failed, abort the deployment and keep the old container running
+# If it failed, print logs, abort, and roll back
 if [ "$HEALTH_CHECK_PASSED" = false ]; then
     echo "❌ FATAL: $NEW_CONTAINER failed health check!"
+    echo "--- START CRASH LOGS ---"
+    docker logs $NEW_CONTAINER
+    echo "--- END CRASH LOGS ---"
     echo "Aborting deployment. Rolling back to $OLD_CONTAINER."
-    # Destroy the broken service
+    
     docker compose -f docker-compose.prod.yml stop $NEW_SERVICE
     docker compose -f docker-compose.prod.yml rm -f $NEW_SERVICE
     exit 1
 fi
 
-# 5. Swap the Nginx configuration to point to the new container
+# 5. Swap the Nginx configuration
 sed -i "s/server cart_fastapi_blue:8000;/server $NEW_CONTAINER:8000;/g" nginx/nginx.conf
 sed -i "s/server cart_fastapi_green:8000;/server $NEW_CONTAINER:8000;/g" nginx/nginx.conf
 
-# 6. Hard Restart Nginx (Fixes the 502 IP caching bug)
+# 6. Hard Restart Nginx
 echo "Restarting Nginx to flush DNS cache..."
 docker restart cart_nginx
 
