@@ -87,13 +87,13 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/dep_cart_updated
-            git checkout main
-            git restore nginx/nginx.conf
             
-            git pull origin main
+            # 1. Fetch the absolute latest from GitHub
+            git fetch origin main
             
-            # Make the script executable
+            # 2. FORCE the server to perfectly match GitHub, destroying any local edits
+            git reset --hard origin/main
+            
+            # 3. Make executable and run
             chmod +x deploy.sh
-            
-            # Run the Blue-Green Deployment!
             ./deploy.sh
