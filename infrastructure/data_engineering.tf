@@ -71,3 +71,27 @@ output "firehose_stream_name" {
 output "new_bronze_bucket" {
   value = aws_s3_bucket.bronze_data_lake.bucket
 }
+
+# --- EC2 VIP PASS FOR KINESIS (Formalized from Manual Console Creation) ---
+
+resource "aws_iam_role" "ec2_kinesis_role" {
+  name = "EC2-Cart-Firehose-Role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "kinesis_attach" {
+  role       = aws_iam_role.ec2_kinesis_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonKinesisFirehoseFullAccess"
+}
+
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "EC2-Cart-Firehose-Profile"
+  role = aws_iam_role.ec2_kinesis_role.name
+}
