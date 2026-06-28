@@ -30,7 +30,6 @@ sleep 5
 
 HEALTH_CHECK_PASSED=false
 for i in {1..5}; do
-    # FIX: Use Python's built-in urllib instead of curl!
     if docker exec $NEW_CONTAINER python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')" 2>/dev/null; then
         echo "✅ Health check passed! $NEW_CONTAINER is alive."
         HEALTH_CHECK_PASSED=true
@@ -40,7 +39,6 @@ for i in {1..5}; do
     sleep 3
 done
 
-# If it failed, print logs, abort, and roll back
 if [ "$HEALTH_CHECK_PASSED" = false ]; then
     echo "❌ FATAL: $NEW_CONTAINER failed health check!"
     echo "--- START CRASH LOGS ---"
@@ -53,9 +51,9 @@ if [ "$HEALTH_CHECK_PASSED" = false ]; then
     exit 1
 fi
 
-# 5. Swap the Nginx configuration
-sed -i "s/server cart_fastapi_blue:8000;/server $NEW_CONTAINER:8000;/g" nginx/nginx.conf
-sed -i "s/server cart_fastapi_green:8000;/server $NEW_CONTAINER:8000;/g" nginx/nginx.conf
+# 5. Swap the Nginx configuration (THE FIX)
+sed -i "s/web_blue:8000/$NEW_SERVICE:8000/g" nginx/nginx.conf
+sed -i "s/web_green:8000/$NEW_SERVICE:8000/g" nginx/nginx.conf
 
 # 6. Hard Restart Nginx
 echo "Restarting Nginx to flush DNS cache..."
