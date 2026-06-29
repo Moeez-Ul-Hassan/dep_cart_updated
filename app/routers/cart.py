@@ -124,6 +124,15 @@ def get_cart(cart_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
     cart = db.query(Cart).filter(Cart.id == cart_id).first()
     if not cart:
         raise CartNotFoundException(cart_id=cart_id)
+    
+    # THE ENTERPRISE AUTO-HEAL: Check the math every single time the cart is viewed
+    actual_total = sum(item.price_at_addition * item.quantity for item in cart.items)
+    
+    if cart.total_amount != actual_total:
+        cart.total_amount = actual_total
+        db.commit()
+        db.refresh(cart) # Refresh to ensure the updated total goes out in the JSON
+
     return cart
 
 @router.delete("/{cart_id}/items/{product_id}", response_model=CartResponse)
@@ -170,21 +179,30 @@ def remove_item_from_cart(
 
 @router.get("/{cart_id}/bill", response_model=BillResponse)
 def generate_bill(cart_id: int = Path(..., gt=0), db: Session = Depends(get_db)):
-    """Generate an itemized bill with taxes."""
+    """Generate an itemized bill with 0% taxes dynamically."""
     cart = db.query(Cart).filter(Cart.id == cart_id).first()
     if not cart:
         raise CartNotFoundException(cart_id=cart_id)
-        
-    # Enterprise billing logic (Mock 16% Tax Rate for Punjab/Pakistan standard)
-    tax_rate = 0.16
-    tax_amount = round(cart.total_amount * tax_rate, 2)
-    grand_total = round(cart.total_amount + tax_amount, 2)
-    
+
+    # 1. THE ENTERPRISE FIX: Dynamic Calculation (Single Source of Truth)
+    # Sum up the absolute truth from the line items to bypass any ORM caching bugs
+    actual_subtotal = sum(item.price_at_addition * item.quantity for item in cart.items)
+
+    # 2. Billing Logic (0% Tax Rate as requested)
+    tax_rate = 0.0
+    tax_amount = round(actual_subtotal * tax_rate, 2)
+    grand_total = round(actual_subtotal + tax_amount, 2)
+
+    # 3. AUTO-HEAL: If the database got out of sync, fix it silently
+    if cart.total_amount != actual_subtotal:
+        cart.total_amount = actual_subtotal
+        db.commit()
+
     logger.info("bill_generated", cart_id=cart.id, grand_total=grand_total)
     
     return BillResponse(
         cart_id=cart.id,
-        subtotal=round(cart.total_amount, 2),
+        subtotal=round(actual_subtotal, 2),
         tax_amount=tax_amount,
         grand_total=grand_total
     )
