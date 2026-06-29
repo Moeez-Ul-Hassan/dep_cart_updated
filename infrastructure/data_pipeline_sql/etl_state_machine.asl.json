@@ -1,0 +1,54 @@
+{
+  "Comment": "Automated Bronze to Silver ETL Pipeline",
+  "StartAt": "ParallelSilverTransformations",
+  "States": {
+    "ParallelSilverTransformations": {
+      "Type": "Parallel",
+      "End": true,
+      "Branches": [
+        {
+          "StartAt": "UpdateUsersSilver",
+          "States": {
+            "UpdateUsersSilver": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+              "Parameters": {
+                "QueryString": "INSERT INTO users_silver SELECT id, email, name, created_at, updated_at FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY id ORDER BY updated_at DESC) as rank FROM users_bronze) WHERE rank = 1;",
+                "WorkGroup": "primary"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "UpdateProductsSilver",
+          "States": {
+            "UpdateProductsSilver": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+              "Parameters": {
+                "QueryString": "INSERT INTO products_silver SELECT id, name, price, stock, reserved_stock FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY id ORDER BY updated_at DESC) as rank FROM products_bronze) WHERE rank = 1;",
+                "WorkGroup": "primary"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "UpdateCartsSilver",
+          "States": {
+            "UpdateCartsSilver": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+              "Parameters": {
+                "QueryString": "INSERT INTO carts_silver SELECT c.id, c.user_id, c.status, COALESCE(SUM(ci.quantity * ci.price_at_addition), 0.0) FROM carts_bronze c LEFT JOIN cart_items_bronze ci ON c.id = ci.cart_id GROUP BY c.id, c.user_id, c.status;",
+                "WorkGroup": "primary"
+              },
+              "End": true
+            }
+          }
+        }
+      ]
+    }
+  }
+}
