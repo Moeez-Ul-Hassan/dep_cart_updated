@@ -1,10 +1,10 @@
 {
-  "Comment": "Automated Bronze to Silver ETL Pipeline",
+  "Comment": "Enterprise E-Commerce ETL Pipeline (Bronze -> Silver -> Gold)",
   "StartAt": "ParallelSilverTransformations",
   "States": {
     "ParallelSilverTransformations": {
       "Type": "Parallel",
-      "End": true,
+      "Next": "ParallelGoldAggregations",
       "Branches": [
         {
           "StartAt": "UpdateUsersSilver",
@@ -13,8 +13,8 @@
               "Type": "Task",
               "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
               "Parameters": {
-                "QueryString": "INSERT INTO users_silver SELECT id, email, name, created_at, updated_at FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY id ORDER BY updated_at DESC) as rank FROM users_bronze) WHERE rank = 1;",
-                "WorkGroup": "primary"
+                "QueryString": "CREATE TABLE IF NOT EXISTS silver_users WITH (format = 'PARQUET') AS SELECT * FROM bronze_users;",
+                "WorkGroup": "enterprise-analytics"
               },
               "End": true
             }
@@ -27,8 +27,8 @@
               "Type": "Task",
               "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
               "Parameters": {
-                "QueryString": "INSERT INTO products_silver SELECT id, name, price, stock, reserved_stock FROM (SELECT *, ROW_NUMBER() OVER(PARTITION BY id ORDER BY updated_at DESC) as rank FROM products_bronze) WHERE rank = 1;",
-                "WorkGroup": "primary"
+                "QueryString": "CREATE TABLE IF NOT EXISTS silver_products WITH (format = 'PARQUET') AS SELECT * FROM bronze_products;",
+                "WorkGroup": "enterprise-analytics"
               },
               "End": true
             }
@@ -41,8 +41,28 @@
               "Type": "Task",
               "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
               "Parameters": {
-                "QueryString": "INSERT INTO carts_silver SELECT c.id, c.user_id, c.status, COALESCE(SUM(ci.quantity * ci.price_at_addition), 0.0) FROM carts_bronze c LEFT JOIN cart_items_bronze ci ON c.id = ci.cart_id GROUP BY c.id, c.user_id, c.status;",
-                "WorkGroup": "primary"
+                "QueryString": "CREATE TABLE IF NOT EXISTS silver_carts WITH (format = 'PARQUET') AS SELECT * FROM bronze_carts;",
+                "WorkGroup": "enterprise-analytics"
+              },
+              "End": true
+            }
+          }
+        }
+      ]
+    },
+    "ParallelGoldAggregations": {
+      "Type": "Parallel",
+      "End": true,
+      "Branches": [
+        {
+          "StartAt": "UpdateExecutiveFunnel",
+          "States": {
+            "UpdateExecutiveFunnel": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+              "Parameters": {
+                "QueryString": "CREATE OR REPLACE VIEW gold_executive_funnel AS SELECT count(cart_id) as total_carts FROM silver_carts;",
+                "WorkGroup": "enterprise-analytics"
               },
               "End": true
             }

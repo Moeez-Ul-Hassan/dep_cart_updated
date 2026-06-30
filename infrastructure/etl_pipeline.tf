@@ -37,11 +37,12 @@ resource "aws_iam_role_policy" "step_functions_athena_policy" {
           "s3:PutObject",
           "s3:GetBucketAcl"
         ]
+        # UPGRADE: Dynamic ARNs instead of hardcoded strings!
         Resource = [
-          "arn:aws:s3:::enterprise-cart-bronze-dc2db008",
-          "arn:aws:s3:::enterprise-cart-bronze-dc2db008/*",
-          "arn:aws:s3:::enterprise-cart-athena-results-dc2db008",
-          "arn:aws:s3:::enterprise-cart-athena-results-dc2db008/*"
+          aws_s3_bucket.bronze_data_lake.arn,
+          "${aws_s3_bucket.bronze_data_lake.arn}/*",
+          aws_s3_bucket.athena_results.arn,
+          "${aws_s3_bucket.athena_results.arn}/*"
         ]
       }
     ]
