@@ -1,4 +1,4 @@
-# 1. IAM Role for Step Functions to access Athena and S3
+# 1. IAM Role for Step Functions to access Athena, S3, and Glue
 resource "aws_iam_role" "step_functions_role" {
   name = "sfn-athena-etl-role"
   assume_role_policy = jsonencode({
@@ -11,7 +11,7 @@ resource "aws_iam_role" "step_functions_role" {
   })
 }
 
-# Grant Step Functions permission to run Athena queries and write S3 logs
+# Grant Step Functions permission to run Athena queries, write S3 logs, and access the Glue Catalog
 resource "aws_iam_role_policy" "step_functions_athena_policy" {
   name = "sfn-athena-etl-policy"
   role = aws_iam_role.step_functions_role.id
@@ -37,23 +37,37 @@ resource "aws_iam_role_policy" "step_functions_athena_policy" {
           "s3:PutObject",
           "s3:GetBucketAcl"
         ]
-        # UPGRADE: Dynamic ARNs instead of hardcoded strings!
+        # Dynamic ARNs referencing your other Terraform files
         Resource = [
           aws_s3_bucket.bronze_data_lake.arn,
           "${aws_s3_bucket.bronze_data_lake.arn}/*",
           aws_s3_bucket.athena_results.arn,
           "${aws_s3_bucket.athena_results.arn}/*"
         ]
+      },
+      {
+        # The secret sauce: Allowing Athena to save metadata to the serverless Glue Catalog
+        Effect = "Allow"
+        Action = [
+          "glue:GetDatabase",
+          "glue:GetDatabases",
+          "glue:CreateTable",
+          "glue:GetTable",
+          "glue:GetTables",
+          "glue:UpdateTable",
+          "glue:DeleteTable"
+        ]
+        Resource = "*"
       }
     ]
   })
 }
 
-# 2. The Step Functions State Machine
+# 2. The Step Functions State Machine (The Brain)
 resource "aws_sfn_state_machine" "etl_pipeline" {
   name     = "BronzeToSilverETL"
   role_arn = aws_iam_role.step_functions_role.arn
-  # Reads the JSON file locally
+  # Reads your visual DAG definition from the JSON file locally
   definition = file("${path.module}/data_pipeline_sql/etl_state_machine.asl.json")
 }
 
@@ -70,6 +84,7 @@ resource "aws_iam_role" "eventbridge_role" {
   })
 }
 
+# Grants EventBridge the exact permission to "push the start button" on your Step Function
 resource "aws_iam_role_policy" "eventbridge_sfn_policy" {
   name = "eventbridge-trigger-sfn-policy"
   role = aws_iam_role.eventbridge_role.id
@@ -90,6 +105,7 @@ resource "aws_cloudwatch_event_rule" "nightly_etl" {
   schedule_expression = "cron(0 0 * * ? *)"
 }
 
+# Connects the Cron Schedule to the Step Function using the EventBridge Role
 resource "aws_cloudwatch_event_target" "trigger_sfn" {
   rule      = aws_cloudwatch_event_rule.nightly_etl.name
   target_id = "TriggerETLStateMachine"
