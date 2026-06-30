@@ -15,8 +15,8 @@ resource "aws_iam_role" "firehose_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "firehose.amazonaws.com" }
     }]
   })
@@ -54,11 +54,11 @@ resource "aws_kinesis_firehose_delivery_stream" "event_stream" {
   extended_s3_configuration {
     role_arn   = aws_iam_role.firehose_role.arn
     bucket_arn = aws_s3_bucket.bronze_data_lake.arn
-    
+
     # Automatically organizes folders by Year/Month/Day/Hour!
     prefix              = "raw_events/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/"
     error_output_prefix = "errors/!{firehose:error-output-type}/"
-    
+
     # Firehose will wait until it collects 5MB of data OR 60 seconds pass before uploading a file
     buffering_size     = 5
     buffering_interval = 60
@@ -73,14 +73,13 @@ output "new_bronze_bucket" {
 }
 
 # --- EC2 VIP PASS FOR KINESIS (Formalized from Manual Console Creation) ---
-
 resource "aws_iam_role" "ec2_kinesis_role" {
   name = "EC2-Cart-Firehose-Role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
     }]
   })

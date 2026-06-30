@@ -83,7 +83,7 @@ resource "aws_lambda_function" "rds_etl" {
 resource "aws_cloudwatch_event_rule" "daily_etl_trigger" {
   name                = "trigger-rds-to-bronze-daily"
   description         = "Triggers the RDS to S3 ETL Lambda function every midnight UTC"
-  schedule_expression = "cron(0 0 * * ? *)" 
+  schedule_expression = "cron(0 0 * * ? *)"
 }
 
 resource "aws_cloudwatch_event_target" "lambda_target" {

@@ -4,8 +4,8 @@ resource "aws_iam_role" "step_functions_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "states.amazonaws.com" }
     }]
   })
@@ -26,7 +26,7 @@ resource "aws_iam_role_policy" "step_functions_athena_policy" {
           "athena:GetQueryResults",
           "athena:StopQueryExecution"
         ]
-        Resource = "*" 
+        Resource = "*"
       },
       {
         Effect = "Allow"
@@ -62,8 +62,8 @@ resource "aws_iam_role" "eventbridge_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "events.amazonaws.com" }
     }]
   })

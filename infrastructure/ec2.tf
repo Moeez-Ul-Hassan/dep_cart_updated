@@ -22,7 +22,7 @@ resource "aws_security_group" "app_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   # Allow HTTPS traffic
   ingress {
     description = "Allow HTTPS from anywhere"
@@ -45,7 +45,7 @@ resource "aws_security_group" "app_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] 
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # Allow the server to download updates and Docker from the internet
@@ -67,9 +67,9 @@ resource "aws_instance" "app_server" {
   instance_type          = "t3.micro" # Updated to the modern Free Tier
   subnet_id              = aws_subnet.public_subnet.id
   vpc_security_group_ids = [aws_security_group.app_sg.id]
-  
+
   # ATTACHES THE VIP PASS TO THE SERVER
-  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name 
+  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
   # We tell the server to automatically install Docker the moment it boots up!
   user_data = <<-EOF
